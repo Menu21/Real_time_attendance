@@ -4,19 +4,14 @@ import pickle
 import face_recognition
 import numpy as np
 import cvzone
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
-from firebase_admin import storage
+from firebaseconfig.firebase_init import initialize_firebase  # Adjust import path if necessary
+from firebase_admin import db, storage
 from datetime import datetime
 
-# Firebase initialization
-cred = credentials.Certificate("attendance/Research/serviceaccountkey.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': "https://attendancerealtime-e2d62-default-rtdb.firebaseio.com/",
-    'storageBucket': "attendancerealtime-e2d62.appspot.com"
-})
+# Initialize Firebase
+ref = initialize_firebase()
 
+# Access Firebase Storage
 bucket = storage.bucket()
 
 # Webcam setup
@@ -34,11 +29,18 @@ imgBackground = cv2.imread('attendance/Research/resources/Modes/background.png')
 # Importing the mode images into a list
 folderModePath = 'attendance/Research/resources/Modes'
 modePathList = os.listdir(folderModePath)
-imgModeList = [cv2.imread(os.path.join(folderModePath, path)) for path in modePathList]
+imgModeList = []
 
-# Resize mode images to fit the target area
-target_shape = (414, 633)  # (width, height)
-imgModeList = [cv2.resize(img, target_shape) for img in imgModeList]
+for path in modePathList:
+    img_path = os.path.join(folderModePath, path)
+    img = cv2.imread(img_path)
+    if img is not None:
+        imgModeList.append(cv2.resize(img, (414, 633)))  # Resize while loading
+    else:
+        print(f"Error loading image: {img_path}")
+
+if not imgModeList:
+    raise ValueError("No mode images were loaded. Please check your image paths.")
 
 # Load the encoding file
 print("Loading Encode File ...")
@@ -90,28 +92,29 @@ while True:
         if counter != 0:
             if counter == 1:
                 # Get the Data
-                studentInfo = db.reference(f'Students/{id}').get()
-                print(studentInfo)
-                # Get the Image from the storage
-                blob = bucket.get_blob(f'Images/{id}.png')
-                if blob:
-                    array = np.frombuffer(blob.download_as_string(), np.uint8)
-                    imgStudent = cv2.imdecode(array, cv2.IMREAD_COLOR)
+                studentInfo = ref.child(f'Students/{id}').get()
+                if studentInfo:
+                    print(studentInfo)
+                    # Get the Image from the storage
+                    blob = bucket.get_blob(f'Images/{id}.png')
+                    if blob:
+                        array = np.frombuffer(blob.download_as_string(), np.uint8)
+                        imgStudent = cv2.imdecode(array, cv2.IMREAD_COLOR)
+                    else:
+                        imgStudent = np.zeros((216, 216, 3), np.uint8)  # Placeholder for missing image
+                    # Update data of attendance
+                    datetimeObject = datetime.strptime(studentInfo['last_attendance_time'], "%Y-%m-%d %H:%M:%S")
+                    secondsElapsed = (datetime.now() - datetimeObject).total_seconds()
+                    print(secondsElapsed)
+                    if secondsElapsed > 30:
+                        ref.child(f'Students/{id}/total_attendance').set(studentInfo['total_attendance'] + 1)
+                        ref.child(f'Students/{id}/last_attendance_time').set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    else:
+                        modeType = 3
+                        counter = 0
+                        imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
                 else:
-                    imgStudent = np.zeros((216, 216, 3), np.uint8)  # Placeholder for missing image
-                # Update data of attendance
-                datetimeObject = datetime.strptime(studentInfo['last_attendance_time'], "%Y-%m-%d %H:%M:%S")
-                secondsElapsed = (datetime.now() - datetimeObject).total_seconds()
-                print(secondsElapsed)
-                if secondsElapsed > 30:
-                    ref = db.reference(f'Students/{id}')
-                    studentInfo['total_attendance'] += 1
-                    ref.child('total_attendance').set(studentInfo['total_attendance'])
-                    ref.child('last_attendance_time').set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                else:
-                    modeType = 3
-                    counter = 0
-                    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
+                    print(f"No student info found for ID: {id}")
 
             if modeType != 3:
                 if 10 < counter < 20:
@@ -119,7 +122,7 @@ while True:
 
                 imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
 
-                if counter <= 10:
+                if counter <= 10 and studentInfo:
                     cv2.putText(imgBackground, str(studentInfo['total_attendance']), (861, 125),
                                 cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
                     cv2.putText(imgBackground, str(studentInfo['major']), (1006, 550),
@@ -155,4 +158,5 @@ while True:
 
     cv2.imshow("Face Attendance", imgBackground)
     cv2.waitKey(1)
+
 

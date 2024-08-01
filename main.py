@@ -7,16 +7,11 @@ import cvzone
 import numpy as np
 import face_recognition
 import firebase_admin
+from firebaseconfig.firebase_init import initialize_firebase 
 from firebase_admin import credentials, db, storage
 from ultralytics import YOLO
 from datetime import datetime
 
-# Firebase initialization
-cred = credentials.Certificate("attendance/Research/serviceaccountkey.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': "https://attendancerealtime-e2d62-default-rtdb.firebaseio.com/",
-    'storageBucket': "attendancerealtime-e2d62.appspot.com"
-})
 
 bucket = storage.bucket()
 

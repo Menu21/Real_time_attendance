@@ -1,13 +1,10 @@
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
+from firebaseconfig.firebase_init import initialize_firebase
 
-cred = credentials.Certificate("attendance/Research/serviceaccountkey.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': "https://attendancerealtime-e2d62-default-rtdb.firebaseio.com/"
-})
+# Initialize Firebase and get the reference
 
-ref = db.reference('Students')
+ref = initialize_firebase()
+
+
 
 data = {
     "321654":

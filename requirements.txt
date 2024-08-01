@@ -10,7 +10,7 @@ numpy==1.21.3
 from_root
 gdown
 
--e .
+
 
 
 

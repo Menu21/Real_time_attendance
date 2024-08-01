@@ -2,38 +2,30 @@ import cv2
 import face_recognition
 import pickle
 import os
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
-from firebase_admin import  storage
+from firebaseconfig.firebase_init import initialize_firebase  # Adjust import path if necessary
+from firebase_admin import storage
 
-cred = credentials.Certificate("attendance/Research/serviceaccountkey.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': "https://attendancerealtime-e2d62-default-rtdb.firebaseio.com/",
-    'storageBucket': "attendancerealtime-e2d62.appspot.com"
-})
+# Initialize Firebase
+ref = initialize_firebase()
 
+# Access Firebase Storage
+bucket = storage.bucket()
 
-# Importing student images 
+# Importing student images
 folderPath = 'attendance/Research/Images'
 PathList = os.listdir(folderPath)
 print(PathList)
 imgList = []
-studentIds=[]
+studentIds = []
 for path in PathList:
     imgList.append(cv2.imread(os.path.join(folderPath, path)))
     studentIds.append(os.path.splitext(path)[0])
 
     fileName = f'{folderPath}/{path}'
-    bucket = storage.bucket()
     blob = bucket.blob(fileName)
     blob.upload_from_filename(fileName)
 
-
-
-    #print(path)
-    #print(os.path.splitext(path)[0])
-print(studentIdsIds)
+print(studentIds)
 
 def findEncodings(imagesList):
     encodeList = []
@@ -44,13 +36,11 @@ def findEncodings(imagesList):
 
     return encodeList
 
-
 print("Encoding Started ...")
 encodeListKnown = findEncodings(imgList)
 encodeListKnownWithIds = [encodeListKnown, studentIds]
 print("Encoding Complete")
 
-file = open("EncodeFile.p", 'wb')
-pickle.dump(encodeListKnownWithIds, file)
-file.close()
+with open("EncodeFile.p", 'wb') as file:
+    pickle.dump(encodeListKnownWithIds, file)
 print("File Saved")

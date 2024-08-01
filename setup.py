@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='Real_time_attendance',
+    name='REAL_TIME_ATTENDANCE',
     version='0.0.0',
     author='Menu21',
     author_email='menkabharti2109@gmail.com',
